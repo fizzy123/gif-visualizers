@@ -1,0 +1,98 @@
+<html>
+  <head>
+    <script type="text/javascript" src="static/gifler.js"></script>
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+    <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
+    <script>
+      var i = 0;
+      var onAnimator, offAnimator
+      window.onload = function() {
+        window.bpm = 120
+        var gifs = []
+        for (var i=0;i<400;i++) {
+          var address = "static/gifs/" + i.toString() + ".gif"
+          gifs.push(gifler(address))
+        }
+
+        function initialize() {
+          if (window.loaded == gifs.length) {
+            var gif = loadNextGif()
+            gif.get().then(function(animator) {
+              onAnimator = animator
+              var canvas = gifler.Gif.getCanvasElement('.on')
+              return animator.animateInCanvas(canvas)
+            })
+            var nextGif = loadNextGif()
+            nextGif.get().then(function(animator) {
+              offAnimator = animator
+              var canvas = gifler.Gif.getCanvasElement('.off')
+              return animator.animateInCanvas(canvas)
+            })
+
+            function loadNextGif() {
+              var index = Math.floor(Math.random() * gifs.length)
+              console.log(index)
+              var next = gifs[index];
+              return next
+            }
+            function updateGif(e) {
+              if (e.target.className == "on") {
+                var on = $('.on')
+                var off = $('.off')
+
+                on.removeClass('on')
+                on.addClass('off')
+
+                off.removeClass('off')
+                off.addClass('on')
+
+                nextGif = loadNextGif()
+                nextGif.get().then(function(animator) {
+                  window.clearTimeout(onAnimator._timeout['off'])
+                  onAnimator = offAnimator
+                  offAnimator = animator
+                  var canvas = gifler.Gif.getCanvasElement('.off')
+                  return animator.animateInCanvas(canvas)
+                })
+              }
+            }
+
+            $('.on').get(0).addEventListener('loopEnd', updateGif);
+            $('.off').get(0).addEventListener('loopEnd', updateGif);
+          }
+        }
+        $('body').get(0).addEventListener('loaded', initialize);
+        var socket = io.connect('http://localhost:3000');
+        socket.on('beat', function(data) {
+          window.bpm = data['bpm']
+          if (window.bpm > 160) {
+            window.bpm = window.bpm / 2
+          }
+          $('.on').get(0).dispatchEvent('loopEnd')
+          Object.keys(window.canvasDict).forEach(function(key) {
+            window.canvasDict[key].frameIndex = 0
+          });
+          console.log($('.on').length)
+          console.log(window.bpm);
+        });
+      }
+    </script>
+<style>
+  .off {
+    display: none;
+  }
+  canvas {
+    height: 100%;
+  }
+  body {
+    margin: 0px;
+    text-align: center;
+    background-color: black;
+  }
+</style>
+  </head>
+  <body>
+    <canvas id='one' class='on'></canvas>
+    <canvas id='two' class='off'></canvas>
+  </body>
+</html>
